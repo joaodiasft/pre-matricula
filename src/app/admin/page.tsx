@@ -120,8 +120,12 @@ export default async function AdminPage() {
   const planMap = new Map(planDetails.map((plan) => [plan.id, plan]));
 
   const redacao = courses.find((course) => course.modality === "REDACAO");
-  const bonusRemaining = redacao?.bonusLimit
-    ? Math.max(redacao.bonusLimit - redacao.bonusAwarded, 0)
+  const bonusLimit = redacao?.bonusLimit;
+  const bonusAwarded = redacao?.bonusAwarded ?? 0;
+  const hasBonusLimit = typeof bonusLimit === "number";
+  const safeBonusLimit = bonusLimit ?? 0;
+  const bonusRemaining = hasBonusLimit
+    ? Math.max(safeBonusLimit - bonusAwarded, 0)
     : null;
 
   const planTotal = planGroups.reduce((sum, group) => sum + group._count._all, 0);
@@ -400,7 +404,7 @@ export default async function AdminPage() {
             </CardContent>
           </Card>
         ))}
-        {bonusRemaining !== null && redacao?.bonusLimit !== undefined && (
+        {bonusRemaining !== null && hasBonusLimit && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
@@ -412,7 +416,7 @@ export default async function AdminPage() {
               <p className="text-3xl font-semibold">{bonusRemaining}</p>
             </CardContent>
             <CardContent>
-              <PromoControl awarded={redacao.bonusAwarded} limit={redacao.bonusLimit} />
+              <PromoControl awarded={bonusAwarded} limit={safeBonusLimit} />
             </CardContent>
           </Card>
         )}
