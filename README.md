@@ -53,12 +53,6 @@ Aplicação completa em Next.js 15 + Prisma para gerenciar o fluxo de pré-matr�
    npm run db:seed
    ```
 
-   Isso cria todo o esquema (users, courses, sessions, plans, pre-enrollments, token counter) e popula:
-
-   | Usuário        | Email             | Senha           | Observação   |
-   | -------------- | ----------------- | --------------- | ------------ |
-   | Admin          | admin@redas.com   | redasadmin123   | Role ADMIN   |
-   | Aluno demo     | aluno@redas.com   | redasaluno123   | Role STUDENT |
 
 4. **Rodar em desenvolvimento**
 
