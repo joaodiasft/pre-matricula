@@ -255,14 +255,20 @@ export function PreEnrollmentFlow({
   const paymentDefined = Boolean(enrollment.paymentMethod);
   const readyForReview = enrollment.status !== "DRAFT";
   const hasSchedule = Boolean(enrollment.confirmationDay);
+  type TriggerResponse = { success?: boolean; error?: unknown };
+
   const trigger = (
-    action: () => Promise<{ success?: boolean; error?: string } | void>,
+    action: () => Promise<TriggerResponse | void>,
     options?: { nextStep?: number; successMessage?: string }
   ) => {
     startTransition(async () => {
       const response = await action();
       if (response && "success" in response && !response.success) {
-        toast.error(response.error ?? "Nao foi possivel concluir.");
+        const errorMessage =
+          typeof response.error === "string"
+            ? response.error
+            : "Nao foi possivel concluir.";
+        toast.error(errorMessage);
         return;
       }
       toast.success(options?.successMessage ?? "Atualizacao registrada.");
@@ -845,38 +851,42 @@ function CourseSelection({
               </p>
             </div>
             <div className="space-y-2">
-              {actionableSummaries.map(({ course, selection, pendingSession }) => (
-                <div
-                  key={course.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white p-3 text-sm text-gray-700"
-                >
-                  <div>
-                    <p className="font-semibold text-gray-900">
-                      {course.title}{" "}
-                      {selection ? `— ${selection.session.code}` : ""}
-                    </p>
-                    <p>
-                      {(selection ?? pendingSession)?.weekday} ·{" "}
-                      {(selection ?? pendingSession)?.startTime} ate{" "}
-                      {(selection ?? pendingSession)?.endTime}
-                    </p>
-                  </div>
-                  {selection ? (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="success">Confirmada</Badge>
-                      <Button
-                        variant="ghost"
-                        className="rounded-full"
-                        onClick={() => onRemove(selection.id)}
-                      >
-                        Remover
-                      </Button>
+              {actionableSummaries.map(({ course, selection, pendingSession }) => {
+                const schedule = selection ? selection.session : pendingSession;
+                return (
+                  <div
+                    key={course.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white p-3 text-sm text-gray-700"
+                  >
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {course.title}{" "}
+                        {selection ? `— ${selection.session.code}` : ""}
+                      </p>
+                      {schedule && (
+                        <p>
+                          {schedule.weekday} · {schedule.startTime} ate{" "}
+                          {schedule.endTime}
+                        </p>
+                      )}
                     </div>
-                  ) : (
-                    <Badge variant="outline">Selecionada</Badge>
-                  )}
-                </div>
-              ))}
+                    {selection ? (
+                      <div className="flex items-center gap-2">
+                        <Badge variant="success">Confirmada</Badge>
+                        <Button
+                          variant="ghost"
+                          className="rounded-full"
+                          onClick={() => onRemove(selection.id)}
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                    ) : (
+                      <Badge variant="outline">Selecionada</Badge>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <Button
               className="rounded-full"
