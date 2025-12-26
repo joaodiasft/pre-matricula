@@ -21,6 +21,8 @@ export const metadata: Metadata = {
     "Sistema completo de pré-matrículas para garantir vaga, organizar turmas e confirmar contratos presenciais a partir de janeiro de 2026.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{

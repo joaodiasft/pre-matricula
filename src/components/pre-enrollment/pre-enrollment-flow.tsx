@@ -691,25 +691,37 @@ function CourseSelection({
     setPendingChoices((prev) => ({ ...prev, [courseId]: sessionId }));
   };
 
-  const courseSummaries = courses.map((course) => {
-    const selection = selectionByCourse.get(course.id);
-    const pendingId = pendingChoices[course.id] ?? "";
-    const pendingSession =
-      pendingId && pendingId !== selection?.sessionId
-        ? course.sessions.find((session) => session.id === pendingId)
-        : undefined;
+  const courseSummaries = useMemo(() => {
+    return courses.map((course) => {
+      const selection = selectionByCourse.get(course.id);
+      const pendingId = pendingChoices[course.id] ?? "";
+      const pendingSession =
+        pendingId && pendingId !== selection?.sessionId
+          ? course.sessions.find((session) => session.id === pendingId)
+          : undefined;
 
-    return { course, selection, pendingSession };
-  });
-  const actionableSummaries = courseSummaries.filter(
-    (summary) => summary.selection || summary.pendingSession
+      return { course, selection, pendingSession };
+    });
+  }, [courses, selectionByCourse, pendingChoices]);
+
+  const actionableSummaries = useMemo(
+    () =>
+      courseSummaries.filter(
+        (summary) => summary.selection || summary.pendingSession
+      ),
+    [courseSummaries]
   );
-  const pendingConfirmations = actionableSummaries
-    .filter((summary) => summary.pendingSession)
-    .map((summary) => ({
-      courseId: summary.course.id,
-      sessionId: summary.pendingSession!.id,
-    }));
+
+  const pendingConfirmations = useMemo(
+    () =>
+      actionableSummaries
+        .filter((summary) => summary.pendingSession)
+        .map((summary) => ({
+          courseId: summary.course.id,
+          sessionId: summary.pendingSession!.id,
+        })),
+    [actionableSummaries]
+  );
 
   return (
     <Card className="border-rose-100">
