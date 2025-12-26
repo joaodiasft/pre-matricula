@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useForm, useWatch } from "react-hook-form";
+import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -78,6 +79,8 @@ const levels = [
   { label: "Avancado", value: "AVANCADO" },
 ];
 
+const BASIC_INFO_STORAGE_KEY = "redas-basic-info-cache";
+
 const paymentOptions: {
   label: string;
   value: PaymentMethod;
@@ -94,9 +97,9 @@ const paymentOptions: {
   {
     label: "Cartao",
     value: "CARD",
-    helper: "Parcelamento com confirmacao digital assistida.",
+    helper: "Parcelamento com confirmação digital assistida.",
     detail:
-      "Finalizamos a cobranca com voce e liberamos o token assim que o gateway confirmar o pagamento.",
+      "Finalizamos a cobrança com você e liberamos o token assim que o gateway confirmar o pagamento.",
   },
   {
     label: "Boleto",
@@ -184,6 +187,17 @@ export function PreEnrollmentFlow({
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "local" | "success" | "error">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const timeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    []
+  );
   const computedInitialStep = useMemo(
     () => determineInitialStep(enrollment),
     [enrollment]
@@ -213,6 +227,22 @@ export function PreEnrollmentFlow({
     control: form.control,
     name: "hasEnem",
   });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const cached = window.localStorage.getItem(BASIC_INFO_STORAGE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached) as Partial<BasicInfoFormValues>;
+        form.reset({
+          ...form.getValues(),
+          ...parsed,
+        });
+      }
+    } catch (error) {
+      console.error("Falha ao carregar cache local:", error);
+    }
+  }, [form]);
 
   const derivedSegment = useMemo(
     () => segmentFromGrade(enrollment.grade ?? profile?.grade ?? undefined),
@@ -255,6 +285,14 @@ export function PreEnrollmentFlow({
   const isBasicInfoComplete = Boolean(
     enrollment.age && enrollment.school && enrollment.grade && enrollment.objective
   );
+
+  const [hasSavedBasicInfo, setHasSavedBasicInfo] = useState(isBasicInfoComplete);
+
+  useEffect(() => {
+    setHasSavedBasicInfo(isBasicInfoComplete);
+  }, [isBasicInfoComplete]);
+
+  const basicInfoReady = hasSavedBasicInfo || isBasicInfoComplete;
   const hasAtLeastOneSelection = enrollment.selections.length >= 1;
   const allPlansDefined = enrollment.selections.every((sel) => Boolean(sel.planId));
   const paymentDefined = Boolean(enrollment.paymentMethod);
@@ -272,7 +310,7 @@ export function PreEnrollmentFlow({
         const errorMessage =
           typeof response.error === "string"
             ? response.error
-            : "Nao foi possivel concluir.";
+            : "Não foi possível concluir.";
         toast.error(errorMessage);
         return;
       }
@@ -284,11 +322,77 @@ export function PreEnrollmentFlow({
     });
   };
 
-  const handleBasicInfoSubmit = (values: BasicInfoFormValues) =>
-    trigger(() => saveBasicInfo(values), {
-      nextStep: 3,
-      successMessage: "Dados basicos salvos!",
+  type BasicInfoActionResult =
+    | { success: true }
+    | { success: false; error?: string | Record<string, string[] | undefined> };
+
+  const handleBasicInfoSubmit = form.handleSubmit((values) => {
+    setIsSaving(true);
+    setSaveStatus("saving");
+    const payload = values;
+
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          BASIC_INFO_STORAGE_KEY,
+          JSON.stringify(payload)
+        );
+      }
+    } catch (error) {
+      console.error("Falha ao salvar localmente:", error);
+    }
+
+    setHasSavedBasicInfo(true);
+    const now = new Date();
+    setLastSavedAt(now);
+    setActiveStep(3);
+    setSaveStatus("local");
+    setIsSaving(false);
+    toast.success("Dados salvos localmente! Sincronizando com o servidor...");
+
+    startTransition(() => {
+      (async () => {
+        const result: BasicInfoActionResult = await saveBasicInfo(payload);
+      if (!result.success) {
+        if (
+          result.error &&
+          typeof result.error === "object" &&
+          !Array.isArray(result.error)
+        ) {
+          Object.entries(
+            result.error as Record<string, string[] | undefined>
+          ).forEach(([field, messages]) => {
+            const message = messages?.[0];
+            if (message) {
+              form.setError(field as keyof BasicInfoFormValues, {
+                message,
+              });
+            }
+          });
+          toast.error("Revise os campos destacados e tente novamente.");
+          setActiveStep(2);
+          setSaveStatus("error");
+          return;
+        }
+
+        toast.error(
+          typeof result.error === "string"
+            ? result.error
+            : "Não foi possível sincronizar com o servidor."
+        );
+        setSaveStatus("error");
+        return;
+      }
+
+      setSaveStatus("success");
+      toast.success("Dados sincronizados com sucesso!");
+      router.refresh();
+      })().catch(() => {
+        setSaveStatus("error");
+        toast.error("Não foi possível sincronizar com o servidor.");
+      });
     });
+  });
 
   return (
     <div className="space-y-10">
@@ -339,16 +443,17 @@ export function PreEnrollmentFlow({
         <>
           <Card className="border-rose-100">
             <CardHeader>
-              <CardTitle>Fase 2 - Dados basicos e objetivos</CardTitle>
+              <CardTitle>Fase 2 - Dados básicos e objetivos</CardTitle>
               <CardDescription>
                 Informe apenas o necessario. CPF, RG e endereco completo serao coletados no dia da assinatura do contrato.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form
-                className="grid gap-4 md:grid-cols-2"
-                onSubmit={form.handleSubmit(handleBasicInfoSubmit)}
-              >
+              <form onSubmit={handleBasicInfoSubmit}>
+                <fieldset
+                  disabled={isPending || isSaving}
+                  className="grid gap-4 md:grid-cols-2 disabled:opacity-70"
+                >
                 <Field
                   className="col-span-2"
                   label="Nome completo"
@@ -377,7 +482,7 @@ export function PreEnrollmentFlow({
                   label="Onde estuda"
                   required
                   error={form.formState.errors.school?.message}
-                  hint="Colegio, cursinho ou plataforma em que voce estuda atualmente."
+                  hint="Colégio, cursinho ou plataforma em que você estuda atualmente."
                 >
                   <Input
                     placeholder="Ex: Colegio Estadual Central"
@@ -423,7 +528,7 @@ export function PreEnrollmentFlow({
                   label="Nivel de dominio"
                   required
                   error={form.formState.errors.level?.message}
-                  hint="Indique o quao confortavel voce se sente com o conteudo atual."
+                  hint="Indique o quão confortável você se sente com o conteúdo atual."
                 >
                   <Select
                     onValueChange={(value: Level) => form.setValue("level", value)}
@@ -441,7 +546,7 @@ export function PreEnrollmentFlow({
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Ja fez ENEM?" required hint="Ja fez ENEM ou Vestibular antes?">
+                <Field label="Já fez ENEM?" required hint="Já fez ENEM ou vestibular antes?">
                   <div className="flex gap-3">
                     <Button
                       type="button"
@@ -455,7 +560,7 @@ export function PreEnrollmentFlow({
                       variant={!hasEnem ? "default" : "outline"}
                       onClick={() => form.setValue("hasEnem", false)}
                     >
-                      Nao
+                      Não
                     </Button>
                   </div>
                 </Field>
@@ -469,29 +574,68 @@ export function PreEnrollmentFlow({
                     />
                   </Field>
                 )}
-                  <Field className="col-span-2" hint="Conte, em 1 ou 2 frases, o principal resultado que espera alcançar.">
-                    <Label>Objetivo especifico</Label>
+                <Field
+                  className="col-span-2"
+                  hint="Conte, em 1 ou 2 frases, o principal resultado que espera alcançar."
+                >
+                  <Label>Objetivo específico</Label>
                   <Textarea
                     rows={3}
-                    placeholder="Ex: melhorar redacao para garantir nota acima de 900."
+                    placeholder="Ex: melhorar redação para garantir nota acima de 900."
                     {...form.register("studyGoal")}
                   />
                   <FormMessage message={form.formState.errors.studyGoal?.message} />
                 </Field>
-                <div className="col-span-2 flex flex-wrap gap-3">
-                  <Button type="submit" disabled={isPending}>
-                    Salvar dados basicos
+                </fieldset>
+                <div className="mt-4 flex flex-wrap items-center gap-4">
+                  <Button type="submit" disabled={isPending || isSaving}>
+                    {isPending || isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      "Salvar dados básicos"
+                    )}
                   </Button>
-                  <span className="text-xs text-gray-500">
-                    Assim que salvar, destravamos a fase de cursos.
-                  </span>
+                  <div className="flex flex-col gap-1 text-xs text-gray-500">
+                    <span>
+                      {basicInfoReady
+                        ? "Pronto! Você pode avançar para a fase de cursos."
+                        : "Assim que salvar, destravamos a fase de cursos."}
+                    </span>
+                    {saveStatus === "local" && (
+                      <span className="flex items-center gap-1 text-rose-600">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Dados salvos localmente. Sincronizando...
+                      </span>
+                    )}
+                    {saveStatus === "success" && lastSavedAt && (
+                      <span className="flex items-center gap-1 text-emerald-600">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Salvo às {timeFormatter.format(lastSavedAt)}.
+                      </span>
+                    )}
+                    {saveStatus === "error" && (
+                      <span className="flex items-center gap-1 text-destructive">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        Não foi possível salvar. Revise os campos.
+                      </span>
+                    )}
+                    {saveStatus === "saving" && (
+                      <span className="flex items-center gap-1 text-rose-600">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Salvando alterações...
+                      </span>
+                    )}
+                  </div>
                 </div>
               </form>
             </CardContent>
           </Card>
           <PhaseFooter
             label="Ir para Fase 3 - Cursos"
-            disabled={!isBasicInfoComplete}
+            disabled={!basicInfoReady}
             onContinue={() => setActiveStep(3)}
           />
         </>
@@ -728,7 +872,7 @@ function CourseSelection({
       <CardHeader>
         <CardTitle>Fase 3 - Cursos e turmas</CardTitle>
         <CardDescription>
-          Confirme apenas uma turma por modalidade. Caso esteja lotada, adicionamos voce automaticamente na lista de espera.
+          Confirme apenas uma turma por modalidade. Caso esteja lotada, adicionamos você automaticamente na lista de espera.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -753,7 +897,7 @@ function CourseSelection({
           </div>
         </div>
         <Alert tone="info">
-          Minimo geral: escolha ao menos uma modalidade. Se quiser mais de um curso, confirme uma turma por modalidade.
+          Mínimo geral: escolha ao menos uma modalidade. Se quiser mais de um curso, confirme uma turma por modalidade.
         </Alert>
         {courses.map((course) => {
           const selection = selectionByCourse.get(course.id);
@@ -775,13 +919,13 @@ function CourseSelection({
                 {selection ? (
                   <Badge variant="success">Confirmado ({selection.session.code})</Badge>
                 ) : (
-                  <Badge variant="outline">Aguardando confirmacao</Badge>
+                  <Badge variant="outline">Aguardando confirmação</Badge>
                 )}
               </div>
 
               {filteredSessions.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-gray-200 p-4 text-sm text-gray-600">
-                  Nao ha turmas para o filtro escolhido. Ajuste o segmento acima.
+                  Não há turmas para o filtro escolhido. Ajuste o segmento acima.
                 </div>
               ) : (
                 <div className="grid gap-3 md:grid-cols-2">
@@ -1062,7 +1206,7 @@ function PlanSelection({
                     </p>
                   </>
                 ) : (
-                  <p>Escolha uma modalidade para ver detalhes de confirmacao.</p>
+                  <p>Escolha uma modalidade para ver detalhes de confirmação.</p>
                 )}
               </div>
             </div>
@@ -1078,10 +1222,10 @@ function PlanSelection({
               </p>
             </div>
             <Alert tone="info">
-              Em caso de duvidas ou para acelerar a confirmacao, fale com a secretaria pelo WhatsApp {CONFIRMATION_WHATSAPP} assim que escolher a forma de pagamento.
+              Em caso de dúvidas ou para acelerar a confirmação, fale com a secretaria pelo WhatsApp {CONFIRMATION_WHATSAPP} assim que escolher a forma de pagamento.
             </Alert>
             <Alert tone="warning">
-              A vaga fica como pendente ate a equipe da secretaria revisar e confirmar. Assim que aprovarem voce vera o selo de confirmada automaticamente.
+              A vaga fica como pendente até a equipe da secretaria revisar e confirmar. Assim que aprovarem você verá o selo de confirmada automaticamente.
             </Alert>
           </div>
         )}
@@ -1199,9 +1343,9 @@ function ScheduleStep({ currentDate, status, onSelectDate }: ScheduleStepProps) 
             Data confirmada para {currentDate}. Status atual: {EnrollmentStatusCopy[status]}.
           </Alert>
         ) : (
-          <Alert tone="warning">
-            Escolha o dia ideal para confirmar presencialmente. Nao esqueca e nao perca seu token no dia da confirmacao.
-          </Alert>
+            <Alert tone="warning">
+              Escolha o dia ideal para confirmar presencialmente. Não esqueça e não perca seu token no dia da confirmação.
+            </Alert>
         )}
       </CardContent>
     </Card>
@@ -1217,7 +1361,7 @@ function ChecklistStep({ token }: ChecklistStepProps) {
     <Card className="border-gray-100">
       <CardHeader>
         <CardTitle>Fase 7 - Checklist presencial</CardTitle>
-        <CardDescription>Leve os itens essenciais no dia da confirmacao.</CardDescription>
+        <CardDescription>Leve os itens essenciais no dia da confirmação.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 text-sm text-gray-700">
         <ul className="list-disc space-y-2 pl-5">
@@ -1228,7 +1372,7 @@ function ChecklistStep({ token }: ChecklistStepProps) {
           </li>
         </ul>
         <Alert tone="info">
-          Nao esqueca e nao perca o token no dia da confirmacao presencial. Em caso de perda, fale com a secretaria informando seu e-mail.
+          Não esqueça e não perca o token no dia da confirmação presencial. Em caso de perda, fale com a secretaria informando seu e-mail.
         </Alert>
       </CardContent>
     </Card>
@@ -1309,4 +1453,3 @@ function normalizeText(value: string) {
     .replace(/[^a-zA-Z\s]/g, "")
     .toLowerCase();
 }
-

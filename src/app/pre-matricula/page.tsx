@@ -133,7 +133,7 @@ export default async function PreMatriculaPage() {
               Precisa de ajuda com o preenchimento?
             </h2>
             <p className="text-sm text-gray-600">
-              A equipe acompanha a fase 1 pelo mesmo painel. Se pintar duvida sobre um campo, envie uma mensagem e continuamos juntos.
+              A equipe acompanha a fase 1 pelo mesmo painel. Se pintar dúvida sobre um campo, envie uma mensagem e continuamos juntos.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button asChild className="rounded-full">

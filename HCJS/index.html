@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pré-matrícula Redas • Protótipo HTML/CSS/JS</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Pré-matrículas 2026</p>
+        <h1>Experiência guiada e totalmente web</h1>
+        <p>
+          Cadastre-se, organize dados básicos, escolha turmas e confirme a
+          pré-matrícula em três fases simples.
+        </p>
+      </div>
+      <button class="primary" id="ctaStep2">Ir para Fase 2</button>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <header class="card-header">
+          <p class="tag">Fase 1</p>
+          <h2>Crie sua conta</h2>
+          <p class="muted">
+            Esta versão HTML estática simula que o usuário já concluiu o login.
+          </p>
+        </header>
+        <div class="card-body">
+          <p class="muted">
+            Use os botões da Fase 2 e Fase 3 para experimentar o fluxo.
+          </p>
+        </div>
+      </section>
+
+      <section class="card" id="phase-2">
+        <header class="card-header">
+          <p class="tag">Fase 2</p>
+          <h2>Dados básicos e objetivos</h2>
+          <p class="muted">
+            Preencha com os dados do aluno para liberar a escolha de cursos.
+          </p>
+        </header>
+        <div class="card-body">
+          <form id="basic-form" class="grid">
+            <label>
+              <span>Nome completo</span>
+              <input type="text" name="fullName" required placeholder="Ex: João Silva" />
+            </label>
+            <label>
+              <span>Idade</span>
+              <input type="number" name="age" min="10" max="80" required placeholder="12" />
+            </label>
+            <label>
+              <span>Colégio / cursinho</span>
+              <input type="text" name="school" required placeholder="Colégio Estadual" />
+            </label>
+            <label>
+              <span>Série / Ano</span>
+              <input type="text" name="grade" required placeholder="3º ano" />
+            </label>
+            <label>
+              <span>Objetivo</span>
+              <select name="objective" required>
+                <option value="">Selecione...</option>
+                <option value="ENEM">ENEM</option>
+                <option value="VESTIBULAR">Vestibular tradicional</option>
+                <option value="CONCURSOS">Concursos</option>
+              </select>
+            </label>
+            <label>
+              <span>Nível declarado</span>
+              <select name="level" required>
+                <option value="">Selecione...</option>
+                <option value="INICIANTE">Iniciante</option>
+                <option value="INTERMEDIARIO">Intermediário</option>
+                <option value="AVANCADO">Avançado</option>
+              </select>
+            </label>
+            <label class="full">
+              <span>Objetivo específico</span>
+              <textarea
+                name="studyGoal"
+                rows="3"
+                placeholder="Ex: melhorar redação para garantir nota acima de 900."
+              ></textarea>
+            </label>
+            <div class="full actions">
+              <button type="submit" class="primary" id="saveBasicBtn">
+                Salvar dados básicos
+              </button>
+              <div id="saveStatus" class="muted"></div>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="card" id="phase-3">
+        <header class="card-header">
+          <p class="tag">Fase 3</p>
+          <h2>Escolha cursos e turmas</h2>
+          <p class="muted">
+            Esta seção só é liberada após salvar os dados básicos.
+          </p>
+        </header>
+        <div class="card-body">
+          <div id="phase3Locked" class="alert info">
+            <strong>Finalize a fase anterior</strong>
+            <span>Salve os dados básicos para liberar esta etapa.</span>
+          </div>
+          <div id="phase3Content" class="hidden">
+            <div class="courses-grid" id="coursesGrid"></div>
+            <button class="primary" id="confirmCoursesBtn">Confirmar seleção</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <header class="card-header">
+          <p class="tag">Resumo</p>
+          <h2>Status geral</h2>
+        </header>
+        <div class="card-body">
+          <ul id="summaryList" class="summary"></ul>
+        </div>
+      </section>
+    </main>
+
+    <template id="course-template">
+      <article class="course-card">
+        <header>
+          <h3 data-title></h3>
+          <span class="badge" data-modality></span>
+        </header>
+        <p data-description class="muted"></p>
+        <div data-sessions class="sessions"></div>
+      </article>
+    </template>
+
+    <script src="script.js"></script>
+  </body>
+</html>

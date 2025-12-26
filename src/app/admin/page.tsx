@@ -335,7 +335,7 @@ export default async function AdminPage() {
             paymentStatus: PaymentStatusCopy[enrollment.paymentStatus],
             paymentMethod: enrollment.paymentMethod
               ? PaymentMethodCopy[enrollment.paymentMethod]
-              : "Nao definido",
+                 : "Não definido",
             objective: enrollment.objective,
             grade: enrollment.grade,
             age: enrollment.age,
@@ -521,8 +521,8 @@ export default async function AdminPage() {
                   <p className="text-xs text-muted-foreground">
                     Status: {EnrollmentStatusCopy[entry.status]} • Objetivo:{" "}
                     {entry.objective
-                      ? objectiveLabels[entry.objective as Objective] ?? "Nao informado"
-                      : "Nao informado"}
+          ? objectiveLabels[entry.objective as Objective] ?? "Não informado"
+          : "Não informado"}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -789,11 +789,11 @@ export default async function AdminPage() {
                               <span>
                                 Objetivo:{" "}
                                 {student.objective
-                                  ? objectiveLabels[student.objective as Objective] ?? "Nao informado"
-                                  : "Nao informado"}
+                                   ? objectiveLabels[student.objective as Objective] ?? "Não informado"
+                                   : "Não informado"}
                               </span>
                               <span>
-                                Serie/Nivel: {student.grade ?? "Nao informado"}{" "}
+                                 Série/Nível: {student.grade ?? "Não informado"}{" "}
                                 {student.age ? `- ${student.age} anos` : ""}
                               </span>
                             </div>

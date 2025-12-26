@@ -293,7 +293,7 @@ export async function updateUserAccount(values: {
     if (error instanceof Error && error.message.includes("Unique constraint")) {
       return { success: false, error: "Email ja esta sendo usado." };
     }
-    return { success: false, error: "Nao foi possivel atualizar o cadastro." };
+      return { success: false, error: "Não foi possível atualizar o cadastro." };
   }
 
   refresh();

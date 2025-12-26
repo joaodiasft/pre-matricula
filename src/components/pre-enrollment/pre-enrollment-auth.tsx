@@ -92,7 +92,7 @@ function RegisterForm() {
         <FormMessage message={form.formState.errors.name?.message} />
       </div>
       <div className="grid gap-2">
-        <FieldHint>Digite o email que voce acessa todos os dias; enviaremos alertas e o token por ele.</FieldHint>
+        <FieldHint>Digite o e-mail que você acessa todos os dias; enviaremos alertas e o token por ele.</FieldHint>
         <Label requiredMark>Email</Label>
         <Input
           type="email"
