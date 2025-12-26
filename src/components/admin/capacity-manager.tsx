@@ -61,21 +61,23 @@ export function CapacityManager({ sessions }: { sessions: SessionRow[] }) {
   );
 
   useEffect(() => {
-    setValues(
-      Object.fromEntries(
-        sessions.map((session) => [
-          session.id,
-          {
-            capacity: String(session.capacity),
-            weekday: session.weekday,
-            startTime: session.startTime,
-            endTime: session.endTime,
-            level: session.level || "Fundamental",
-          },
-        ])
-      )
-    );
-  }, [sessions]);
+    startTransition(() => {
+      setValues(
+        Object.fromEntries(
+          sessions.map((session) => [
+            session.id,
+            {
+              capacity: String(session.capacity),
+              weekday: session.weekday,
+              startTime: session.startTime,
+              endTime: session.endTime,
+              level: session.level || "Fundamental",
+            },
+          ])
+        )
+      );
+    });
+  }, [sessions, startTransition]);
 
   const totalReserved = useMemo(
     () => sessions.reduce((sum, session) => sum + session.reserved, 0),

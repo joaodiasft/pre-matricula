@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -207,6 +207,11 @@ export function PreEnrollmentFlow({
       enemScore: enrollment.enemScore ?? profile?.enemScore ?? undefined,
       studyGoal: enrollment.studyGoal ?? "",
     },
+  });
+
+  const hasEnem = useWatch({
+    control: form.control,
+    name: "hasEnem",
   });
 
   const derivedSegment = useMemo(
@@ -440,21 +445,21 @@ export function PreEnrollmentFlow({
                   <div className="flex gap-3">
                     <Button
                       type="button"
-                      variant={form.watch("hasEnem") ? "default" : "outline"}
+                      variant={hasEnem ? "default" : "outline"}
                       onClick={() => form.setValue("hasEnem", true)}
                     >
                       Sim
                     </Button>
                     <Button
                       type="button"
-                      variant={!form.watch("hasEnem") ? "default" : "outline"}
+                      variant={!hasEnem ? "default" : "outline"}
                       onClick={() => form.setValue("hasEnem", false)}
                     >
                       Nao
                     </Button>
                   </div>
                 </Field>
-                {form.watch("hasEnem") && (
+                {hasEnem && (
                   <Field error={form.formState.errors.enemScore?.message}>
                     <Label>Nota no ENEM</Label>
                     <Input
@@ -666,6 +671,7 @@ function CourseSelection({
   }, [selections]);
 
   const [pendingChoices, setPendingChoices] = useState<Record<string, string>>({});
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
     const parsed: { courseId: string; sessionId: string }[] = JSON.parse(
@@ -676,8 +682,10 @@ function CourseSelection({
       const match = parsed.find((item) => item.courseId === course.id);
       defaults[course.id] = match?.sessionId ?? "";
     });
-    setPendingChoices(defaults);
-  }, [courses, selectionSignature]);
+    startTransition(() => {
+      setPendingChoices(defaults);
+    });
+  }, [courses, selectionSignature, startTransition]);
 
   const handleChoice = (courseId: string, sessionId: string) => {
     setPendingChoices((prev) => ({ ...prev, [courseId]: sessionId }));
